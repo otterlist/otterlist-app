@@ -1,49 +1,60 @@
-type Product = {
-  id: string;
+"use client";
+
+import Link from "next/link";
+
+type CardProduct = {
+  slug: string;
   title: string;
-  price?: string;
-  image: string;
-  dest: string;     // final brand/affiliate URL
-  brand?: string;
-  tags?: string[];
+  brand: string;
+  price: number;
+  tags: string[];
+  url?: string;
+  image?: string | null;
 };
 
-export type { Product };
-
-export default function ProductCard({ p }: { p: Product }) {
+export default function ProductCard({ product }: { product: CardProduct }) {
   return (
-    <a
-      href={`/go?u=${encodeURIComponent(p.dest)}`}
-      className="block rounded-2xl border border-zinc-200 hover:shadow-md transition-shadow overflow-hidden bg-white"
+    <Link
+      href={`/products/${product.slug}`}
+      className="group block rounded-2xl border border-gray-200 bg-white p-4 md:p-5 shadow-sm hover:shadow-md transition-shadow"
     >
-      <div className="relative aspect-square bg-zinc-50">
-        {/* simple <img> for now; we can swap to next/image later */}
-        <img
-          src={p.image}
-          alt={p.title}
-          className="w-full h-full object-cover"
-          loading="lazy"
-        />
+      {/* Media */}
+      <div className="mb-4 md:mb-5">
+        {/* Placeholder aspect until real images */}
+        <div className="aspect-[4/5] w-full rounded-xl bg-gray-100 ring-1 ring-inset ring-gray-200" />
       </div>
 
-      <div className="p-4">
-        {p.brand && <div className="text-sm text-zinc-500 mb-1">{p.brand}</div>}
-        <div className="font-semibold">{p.title}</div>
-
-        <div className="mt-2 flex items-center justify-between">
-          <div className="text-green-600 font-semibold">{p.price ?? ""}</div>
-          <div className="flex gap-1 flex-wrap">
-            {(p.tags ?? []).slice(0, 3).map((t) => (
-              <span
-                key={t}
-                className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600"
-              >
-                {t}
-              </span>
-            ))}
-          </div>
+      {/* Text */}
+      <div className="space-y-1.5">
+        <div className="text-xs uppercase tracking-wide text-gray-500">
+          {product.brand}
+        </div>
+        <h3 className="text-base md:text-lg font-medium leading-snug line-clamp-2">
+          {product.title}
+        </h3>
+        <div className="text-sm md:text-base font-semibold tabular-nums">
+          ${product.price.toFixed(2)}
         </div>
       </div>
-    </a>
+
+      {/* Tags */}
+      {product.tags?.length > 0 && (
+        <div className="mt-3 md:mt-4 flex flex-wrap gap-2">
+          {product.tags.map((t) => (
+            <span
+              key={t}
+              className="rounded-full border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs text-gray-700"
+            >
+              {t}
+            </span>
+          ))}
+        </div>
+      )}
+
+      {/* Subtle affordance */}
+      <div className="mt-4 text-sm text-blue-600 opacity-0 transition-opacity group-hover:opacity-100">
+        View details →
+      </div>
+    </Link>
   );
 }
