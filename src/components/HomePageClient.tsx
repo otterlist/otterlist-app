@@ -7,24 +7,35 @@ import TagFilter from "./TagFilter";
 
 export default function HomePageClient() {
   const [query, setQuery] = useState("");
+  const [activeTags, setActiveTags] = useState<string[]>([]); // <-- multi-select
 
-  // Collect all unique tags from your sample products
-  const allTags = useMemo(
-    () => Array.from(new Set(sampleProducts.flatMap((p) => p.tags ?? []))),
-    []
-  );
+  // build unique tag list
+  const allTags = useMemo(() => {
+    const s = new Set<string>();
+    for (const p of sampleProducts) (p.tags ?? []).forEach(t => s.add(t));
+    return Array.from(s).sort((a, b) => a.localeCompare(b));
+  }, []);
 
-  // Filter products by the search query (title, brand, or any tag)
+  // filter by text + ALL selected tags
   const filtered: Product[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return sampleProducts;
 
-    return sampleProducts.filter((p) =>
-      [p.title, p.brand, ...(p.tags ?? [])].some((v) =>
-        (v ?? "").toLowerCase().includes(q)
-      )
-    );
-  }, [query]);
+    return sampleProducts.filter(p => {
+      const textHit =
+        !q ||
+        [p.title, p.brand, ...(p.tags ?? [])]
+          .join(" ")
+          .toLowerCase()
+          .includes(q);
+
+      const tags = p.tags ?? [];
+      const tagHit =
+        activeTags.length === 0 ||
+        activeTags.every(t => tags.includes(t)); // must contain every selected tag
+
+      return textHit && tagHit;
+    });
+  }, [query, activeTags]);
 
   return (
     <main className="p-6">
@@ -34,19 +45,21 @@ export default function HomePageClient() {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search products..."
-          className="w-full rounded-full border border-zinc-300 px-5 py-3 outline-none focus:ring-2 focus:ring-zinc-400"
+          className="w-full rounded-full border border-zinc-300 px-4 py-2 outline-none focus:ring-2 focus:ring-zinc-300"
         />
       </div>
 
       {/* tag filter */}
-      <TagFilter
-        allTags={allTags}
-        active={query ? [query] : []}
-        onChange={(next) => setQuery(next[0] || "")}
-      />
+      <div className="mb-6">
+        <TagFilter
+          allTags={allTags}
+          active={activeTags}
+          onChange={setActiveTags}
+        />
+      </div>
 
-      {/* product grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+      {/* grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map((p) => (
           <ProductCard key={p.id} p={p} />
         ))}
