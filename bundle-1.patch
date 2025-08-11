@@ -1,0 +1,204 @@
+diff --git a/src/app/page.tsx b/src/app/page.tsx
+index 1111111..2222222 100644
+--- a/src/app/page.tsx
++++ b/src/app/page.tsx
+@@ -1,23 +1,22 @@
+-import Hero from "@/components/Hero";
+-import TagFilter from "@/components/TagFilter";
+-import ProductCard from "@/components/ProductCard";
+-import products from "@/lib/products";
++import Hero from "@/components/Hero";
++import HomePageClient from "@/components/HomePageClient";
+ 
+ export default function HomePage() {
+   return (
+     <main>
+       <Hero />
+-
+-      {/* Products Section */}
+-      <section id="products" className="mt-10 sm:mt-14 px-4 sm:px-6 lg:px-8">
+-        <TagFilter />
+-        <div className="mt-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+-          {products.map((p) => (
+-            <ProductCard key={p.id} {...p} />
+-          ))}
+-        </div>
+-      </section>
++      {/* Client section: search + tags + products */}
++      <HomePageClient />
+     </main>
+   );
+ }
+ 
+diff --git a/src/components/HomePageClient.tsx b/src/components/HomePageClient.tsx
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/src/components/HomePageClient.tsx
+@@ -0,0 +1,86 @@
++"use client";
++
++import { useMemo, useState } from "react";
++import Fuse from "fuse.js";
++import productsData, { type Product } from "@/lib/products";
++import ProductCard from "@/components/ProductCard";
++import TagFilter from "@/components/TagFilter";
++import SearchBar from "@/components/SearchBar";
++
++export default function HomePageClient() {
++  const [activeTags, setActiveTags] = useState<string[]>([]);
++  const [q, setQ] = useState("");
++
++  // Build Fuse index once
++  const fuse = useMemo(
++    () =>
++      new Fuse(productsData, {
++        keys: ["title", "brand", "tags"],
++        threshold: 0.35,
++        ignoreLocation: true,
++      }),
++    []
++  );
++
++  // First apply search, then tag filtering
++  const searched: Product[] = useMemo(() => {
++    const term = q.trim();
++    if (!term) return productsData;
++    return fuse.search(term).map((r) => r.item as Product);
++  }, [q, fuse]);
++
++  const filtered = useMemo(() => {
++    if (!activeTags.length) return searched;
++    return searched.filter((p) => activeTags.every((t) => p.tags?.includes(t)));
++  }, [searched, activeTags]);
++
++  return (
++    <>
++      <section className="mt-8 sm:mt-12 px-4 sm:px-6 lg:px-8">
++        <SearchBar value={q} onChange={setQ} />
++        <div className="mt-3">
++          <TagFilter onChange={setActiveTags} />
++        </div>
++      </section>
++
++      <section id="products" className="mt-6 px-4 sm:px-6 lg:px-8">
++        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
++          {filtered.map((p) => (
++            <ProductCard key={p.id} {...p} />
++          ))}
++        </div>
++        {filtered.length === 0 && (
++          <p className="mt-6 text-sm text-gray-500">
++            No products match your search and filters.
++          </p>
++        )}
++      </section>
++    </>
++  );
++}
+diff --git a/src/components/SearchBar.tsx b/src/components/SearchBar.tsx
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/src/components/SearchBar.tsx
+@@ -0,0 +1,33 @@
++"use client";
++
++type Props = {
++  value: string;
++  onChange: (v: string) => void;
++  placeholder?: string;
++  className?: string;
++};
++
++export default function SearchBar({
++  value,
++  onChange,
++  placeholder = "Search brands, products, or tags…",
++  className,
++}: Props) {
++  return (
++    <form
++      onSubmit={(e) => e.preventDefault()}
++      className={["w-full", className ?? ""].join(" ")}
++      role="search"
++    >
++      <input
++        value={value}
++        onChange={(e) => onChange(e.target.value)}
++        placeholder={placeholder}
++        aria-label="Search products"
++        className="w-full rounded-full border border-gray-300 bg-white/90 px-5 py-3 text-[15px] outline-none transition placeholder:text-gray-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/30 shadow-sm"
++        autoComplete="off"
++      />
++    </form>
++  );
++}
+diff --git a/src/app/go/route.ts b/src/app/go/route.ts
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/src/app/go/route.ts
+@@ -0,0 +1,23 @@
++import { NextRequest, NextResponse } from "next/server";
++
++// /go?u=<encoded-destination>
++export function GET(req: NextRequest) {
++  const param = req.nextUrl.searchParams.get("u");
++  if (!param) {
++    // No URL provided; send home
++    return NextResponse.redirect(new URL("/", req.url), 302);
++  }
++  try {
++    const dest = new URL(param);
++    // Optional: add your own click logging here later
++    return NextResponse.redirect(dest.toString(), 302);
++  } catch {
++    return NextResponse.redirect(new URL("/", req.url), 302);
++  }
++}
+diff --git a/src/app/robots.ts b/src/app/robots.ts
+new file mode 100644
+index 0000000..6666666
+--- /dev/null
++++ b/src/app/robots.ts
+@@ -0,0 +1,15 @@
++import type { MetadataRoute } from "next";
++
++const base =
++  process.env.NEXT_PUBLIC_SITE_URL || "https://otterlist-app.vercel.app";
++
++export default function robots(): MetadataRoute.Robots {
++  return {
++    rules: {
++      userAgent: "*",
++      allow: "/",
++    },
++    sitemap: `${base}/sitemap.xml`,
++  };
++}
+diff --git a/src/app/sitemap.ts b/src/app/sitemap.ts
+new file mode 100644
+index 0000000..7777777
+--- /dev/null
++++ b/src/app/sitemap.ts
+@@ -0,0 +1,24 @@
++import type { MetadataRoute } from "next";
++import { products } from "@/lib/products";
++
++const base =
++  process.env.NEXT_PUBLIC_SITE_URL || "https://otterlist-app.vercel.app";
++
++export default function sitemap(): MetadataRoute.Sitemap {
++  const staticRoutes: MetadataRoute.Sitemap = [
++    { url: `${base}/`, lastModified: new Date() },
++  ];
++
++  const productRoutes: MetadataRoute.Sitemap = products.map((p) => ({
++    url: `${base}/products/${p.slug}`,
++    lastModified: new Date(),
++  }));
++
++  return [...staticRoutes, ...productRoutes];
++}
+

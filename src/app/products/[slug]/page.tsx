@@ -1,59 +1,54 @@
 import Link from "next/link";
-import { products } from "@/lib/products";
+import Image from "next/image";
+import { notFound } from "next/navigation";
+import { products, getProductBySlug } from "@/lib/products";
 
 export async function generateStaticParams() {
   return products.map((p) => ({ slug: p.slug }));
 }
 
-type Props = { params: { slug: string } };
-
-export default function ProductPage({ params }: Props) {
-  const product = products.find((p) => p.slug === params.slug);
-  if (!product) {
-    return (
-      <div className="p-6">
-        <p>Not found.</p>
-        <Link href="/" className="text-blue-600 underline">Back to results</Link>
-      </div>
-    );
-  }
+export default async function ProductPage(
+  props: { params: Promise<{ slug: string }> }
+) {
+  const { slug } = await props.params;
+  const product = getProductBySlug(slug);
+  if (!product) return notFound();
 
   return (
-    <main className="p-6">
-      <Link href="/" className="text-sm text-zinc-600 hover:underline">← Back to results</Link>
+    <main className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8 py-10">
+      <Link href="/" className="text-sm underline">← Back</Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mt-6">
-        <div className="rounded-2xl overflow-hidden border border-zinc-200 bg-zinc-50">
-          <img
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-gray-50">
+          <Image
             src={product.image}
             alt={product.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
+            fill
+            sizes="(min-width:768px) 50vw, 100vw"
+            className="object-cover"
           />
         </div>
 
         <div>
-          {product.brand && (
-            <div className="text-sm text-zinc-500 mb-1">{product.brand}</div>
-          )}
-          <h1 className="text-2xl font-bold">{product.title}</h1>
-          {product.price && (
-            <div className="mt-2 text-green-600 font-semibold">{product.price}</div>
-          )}
+          <div className="text-xs text-gray-500">{product.brand}</div>
+          <h1 className="mt-1 text-2xl font-bold">{product.title}</h1>
+          <div className="mt-2 text-emerald-600 font-semibold text-lg">{product.price}</div>
 
-          {product.tags?.length ? (
-            <div className="mt-4 flex gap-2 flex-wrap">
+          {!!product.tags?.length && (
+            <div className="mt-3 flex flex-wrap gap-2">
               {product.tags.map((t) => (
-                <span key={t} className="text-xs px-2 py-0.5 rounded-full bg-zinc-100 text-zinc-600">
+                <span key={t} className="rounded-full border px-3 py-1 text-xs">
                   {t}
                 </span>
               ))}
             </div>
-          ) : null}
+          )}
 
           <a
-            href={`/go?u=${encodeURIComponent(product.dest)}`}
-            className="mt-6 inline-flex items-center justify-center rounded-md bg-black text-white px-4 py-2 hover:bg-zinc-800 transition"
+            href={product.dest}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-6 inline-block rounded-xl bg-emerald-600 px-5 py-2 text-white font-semibold hover:bg-emerald-700"
           >
             Shop on brand site
           </a>

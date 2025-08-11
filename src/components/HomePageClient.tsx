@@ -1,73 +1,62 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import ProductCard, { Product } from "@/components/ProductCard";
-import { products as sampleProducts } from "@/lib/products";
-import TagFilter from "./TagFilter";
+import Fuse from "fuse.js";
+import productsData, { type Product } from "@/lib/products";
+import ProductCard from "@/components/ProductCard";
+import TagFilter from "@/components/TagFilter";
+import SearchBar from "@/components/SearchBar";
 
 export default function HomePageClient() {
-  const [query, setQuery] = useState("");
-  const [activeTags, setActiveTags] = useState<string[]>([]); // <-- multi-select
+  const [activeTags, setActiveTags] = useState<string[]>([]);
+  const [q, setQ] = useState("");
 
-  // build unique tag list
-  const allTags = useMemo(() => {
-    const s = new Set<string>();
-    for (const p of sampleProducts) (p.tags ?? []).forEach(t => s.add(t));
-    return Array.from(s).sort((a, b) => a.localeCompare(b));
-  }, []);
+  // Build Fuse index once
+  const fuse = useMemo(
+    () =>
+      new Fuse(productsData, {
+        keys: ["title", "brand", "tags"],
+        threshold: 0.35,
+        ignoreLocation: true,
+      }),
+    []
+  );
 
-  // filter by text + ALL selected tags
-  const filtered: Product[] = useMemo(() => {
-    const q = query.trim().toLowerCase();
+  // Search first
+  const searched: Product[] = useMemo(() => {
+    const term = q.trim();
+    if (!term) return productsData;
+    return fuse.search(term).map((r) => r.item as Product);
+  }, [q, fuse]);
 
-    return sampleProducts.filter(p => {
-      const textHit =
-        !q ||
-        [p.title, p.brand, ...(p.tags ?? [])]
-          .join(" ")
-          .toLowerCase()
-          .includes(q);
-
-      const tags = p.tags ?? [];
-      const tagHit =
-        activeTags.length === 0 ||
-        activeTags.every(t => tags.includes(t)); // must contain every selected tag
-
-      return textHit && tagHit;
-    });
-  }, [query, activeTags]);
+  // Then filter by tags
+  const filtered = useMemo(() => {
+    if (!activeTags.length) return searched;
+    return searched.filter((p) => activeTags.every((t) => p.tags?.includes(t)));
+  }, [searched, activeTags]);
 
   return (
-    <main className="p-6">
-      {/* search */}
-      <div className="mb-6">
-        <input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search products..."
-          className="w-full rounded-full border border-zinc-300 px-4 py-2 outline-none focus:ring-2 focus:ring-zinc-300"
-        />
-      </div>
+    <>
+      <section className="mt-8 sm:mt-12 px-4 sm:px-6 lg:px-8">
+        <SearchBar value={q} onChange={setQ} />
+        <div className="mt-3">
+          <TagFilter onChange={setActiveTags} />
+        </div>
+      </section>
 
-      {/* tag filter */}
-      <div className="mb-6">
-        <TagFilter
-          allTags={allTags}
-          active={activeTags}
-          onChange={setActiveTags}
-        />
-      </div>
+      <section id="products" className="mt-6 px-4 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+          {filtered.map((p) => (
+            <ProductCard key={p.id} {...p} />
+          ))}
+        </div>
 
-      {/* grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filtered.map((p) => (
-          <ProductCard key={p.id} p={p} />
-        ))}
-      </div>
-
-      {filtered.length === 0 && (
-        <p className="text-zinc-500 mt-8">No results. Try another search or tag.</p>
-      )}
-    </main>
+        {filtered.length === 0 && (
+          <p className="mt-6 text-sm text-gray-500">
+            No products match your search and filters.
+          </p>
+        )}
+      </section>
+    </>
   );
 }

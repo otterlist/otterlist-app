@@ -5,13 +5,14 @@ export type Product = {
   slug: string;
   title: string;
   brand: string;
-  price: string;      // keep as string for now, e.g. "$29.99"
+  price: string;
   tags: string[];
-  image: string;      // path in /public (e.g., "/placeholder.jpg")
-  dest: string;       // affiliate URL (will be wrapped by /go later)
+  image: string;
+  dest: string;
 };
 
-const products: Product[] = [
+// Named export (source of truth)
+export const products: Product[] = [
   {
     id: "1",
     slug: "bamboo-dish-brush",
@@ -54,4 +55,9 @@ const products: Product[] = [
   },
 ];
 
+export function getProductBySlug(slug: string) {
+  return products.find((p) => p.slug === slug);
+}
+
+// Also provide a default export to satisfy any default imports
 export default products;
